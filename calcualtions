@@ -1,0 +1,316 @@
+#! /usr/bin/python
+import gym
+import numpy as np
+from PIL import Image
+import random
+import collections
+import math
+import time
+import cv2
+
+def compair_lists(a,b):
+	compare = lambda x, y: collections.Counter(x) == collections.Counter(y)
+	return compare(a, b)
+
+def compair_unordered_lists(a,b):
+	i=0
+	if len(a)==len(b):
+		while i<len(a):
+			if type(a[i]) == type(b[i]): 
+				if a[i]!=b[i]:
+					return False
+			else:
+				return False	
+			i=i+1
+		if i==len(a):
+			return True
+		else:
+			return False	
+	else:
+		return False
+
+def unordered_lists_diff(a,b):
+	max_diff = False
+	diff_count = 0
+	i=0
+	if len(a)==len(b):
+		while i<len(a):
+			if type(a[i]) == type(b[i]): 
+				if a[i]!=b[i]:
+					diff_count = diff_count+1	
+			else:
+				max_diff = True	
+			i=i+1
+		return diff_count 
+	else:
+		max_diff = True
+	if max_diff:	
+		if len(a)>len(b):
+			return len(a)
+		else:
+			return len(b)
+
+def get_pixel_action(curr_frame,prev_frame,row=None):
+	#print('row: '+str(row))
+	if row!=None:
+		frame_diff = np.subtract(curr_frame[row],prev_frame[row])
+		i=0
+		while i<len(frame_diff):
+			if frame_diff[i][0]!=0 or frame_diff[i][1]!=0 or frame_diff[i][2]!=0:
+				if curr_frame[row][i][0]!=0 or curr_frame[row][i][1]!=0 or curr_frame[row][i][2]!=0:
+					return 4
+				else:
+					return 3
+			i=i+1
+	else:
+		return None
+
+def get_updated_pixels_list(curr_frame,prev_frame,row=None):
+	pixels_list=[]
+	if row!=None:
+		frame_diff = np.subtract(curr_frame[row],prev_frame[row])
+		i=0
+		while i<len(frame_diff):
+			if frame_diff[i][0]!=0 or frame_diff[i][1]!=0 or frame_diff[i][2]!=0:
+				pixels_list.append([row,i])
+			i=i+1
+	else:
+		frame_diff = np.subtract(curr_frame,prev_frame)
+		i=0
+		while i<len(frame_diff):
+			j=0
+			while j<len(frame_diff[i]):
+				if frame_diff[i][j][0]!=0 or frame_diff[i][j][1]!=0 or frame_diff[i][j][2]!=0:
+					pixels_list.append([i][j])
+				j=j+1
+			i=i+1
+	return pixels_list
+
+def get_updated_pixels_color_list(curr_frame,prev_frame,row=None):
+	pixels_color_list=[]
+	if row!=None:
+		frame_diff = np.subtract(curr_frame[row],prev_frame[row])
+		i=0
+		while i<len(frame_diff):
+			if frame_diff[i][0]!=0 or frame_diff[i][1]!=0 or frame_diff[i][2]!=0:
+				if curr_frame[row][i][0]!=0 or curr_frame[row][i][1]!=0 or curr_frame[row][i][2]!=0:
+					pixels_color_list.append([curr_frame[row][i][0],curr_frame[row][i][1],curr_frame[row][i][2]])	
+			i=i+1
+	else:
+		frame_diff = np.subtract(curr_frame,prev_frame)
+		i=0
+		while i<len(frame_diff):
+			j=0
+			while j<(frame_diff[i]):
+				if frame_diff[i][j][0]!=0 or frame_diff[i][j][1]!=0 or frame_diff[i][j][2]!=0:
+					if curr_frame[i][j][0]!=0 or curr_frame[i][j][1]!=0 or curr_frame[i][j][2]!=0:
+						pixels_color_list.append([curr_frame[i][j][0],curr_frame[i][j][1],curr_frame[i][j][2]])
+				j=j+1
+			i=i+1
+	return pixels_color_list
+
+def list_of_lists_to_set(list_of_lists):
+	list_to_set = [tuple(lst) for lst in list_of_lists]
+	ret_set = set(list_to_set)
+	return ret_set 
+
+
+def generate_random_actions_list(actions_list,count):
+	ret_list = []
+	for _ in range(count):
+		ret_list.append(random.choice(actions_list))
+	return ret_list
+
+def update_loading_bar_print(value,total_length,content=None,description=None):
+	value_scaled = math.ceil(value*20/total_length)
+	total_length_scaled = 20	
+	if description == None:
+		description=''
+	if content==None:
+		content=''
+	else:
+		content='['+content+']'
+	bar_print = u"\u2588"*(value_scaled+1)
+	empty_print = ' '*(total_length_scaled-(value_scaled+1))
+	print_str=description+' |'+bar_print+empty_print+'| '+str(value+1)+'/'+str(total_length)+' '+content
+	if value+1==total_length:
+		print(print_str)	
+	else:
+		print(print_str, end="\r")
+
+def show_learning_view(pixels_set,background):
+	apply_color = [0,100,0]
+	for pixels in pixels_set:
+		background[pixels[0]][pixels[1]] = apply_color
+	cv2.imshow('learning view',background)
+	cv2.waitKey(100)
+	return background
+
+def show_result_view(img_array,background):
+	sub_img_array = img_array 
+	i=0
+	while i<len(img_array):
+		j=0
+		while j<len(img_array[i]):
+			if img_array[i][j][0]!=0 or img_array[i][j][1]!=0 or img_array[i][j][2]!=0:
+				around_index_list = [[i+1,j],[i+1,j+1],[i,j+1],[i-1,j+1],[i-1,j],[i-1,j-1],[i,j-1],[i+1,j-1],[i,j]]
+				for point in around_index_list:
+					try:
+						sub_img_array[point[0]][point[1]] = [0,100,0]
+					except:
+						pass
+			j=j+1
+		i=i+1
+	img_diff = np.subtract(img_array,sub_img_array)
+	i=0
+	while i<len(img_diff):
+		j=0
+		while j<len(img_diff[i]):
+			if img_diff[i][j][0]!=0 or img_diff[i][j][1]!=0 or img_diff[i][j][2]!=0:
+				background[i][j] = img_diff[i][j] 
+			j=j+1
+		i=i+1	
+	cv2.imshow('save view',background)
+	cv2.waitKey(100)	
+	return background			
+
+#def calculate_do_action(observation,controlled_pixels_dict):
+
+#### enter learnig loop parameters
+print('default test values: repeated_values_count=20,quit_check_count=100,random_actions_count=3,accuracy=1')
+repeated_values_count_val=input('enter repeated_values_count: ') #20
+quit_check_count_val=input('enter quit_check_count: ') #100
+random_actions_count_val=input('enter random_actions_count: ') #3
+accuracy_val=input('enter accuracy: ') #1
+check_scan_range=input('apply scan range(y/n): ')
+from_scan_range_val=None
+to_scan_range_val=None
+if check_scan_range=='y':
+	from_scan_range_val=input('enter from_scan_range: ')
+	to_scan_range_val=input('enter to_scan_range (value should be less than 210): ')
+####
+
+
+
+env = gym.make('Breakout-v0',render_mode='human')
+
+### constant values
+actions_list=[3,4]
+repeated_values_count = int(repeated_values_count_val) #how many time the values should reapeate to finalize
+quit_check_count = int(quit_check_count_val)
+random_actions_count = int(random_actions_count_val)
+frame_height = 210
+frame_width = 160
+accuracy = int(accuracy_val)
+if from_scan_range_val!=None and to_scan_range_val!=None:
+	from_scan_range=int(from_scan_range_val)
+	to_scan_range=int(to_scan_range_val)
+else:
+	from_scan_range=None
+	to_scan_range=None
+learning_view = np.zeros((frame_height, frame_width, 3), dtype = "uint8")
+result_view = env.reset() 
+######
+
+controlled_pixels_dict = {}
+
+row = frame_height - 1
+if from_scan_range!=None and to_scan_range!=None:
+	upper_limit = to_scan_range
+	lower_limit=from_scan_range-1 
+else:
+	upper_limit = frame_height-1
+	lower_limit = -1	
+
+row = upper_limit 
+print('frame height: '+str(upper_limit-lower_limit))
+#row=192 for test
+while row>lower_limit:
+	#update_loading_bar_print((upper_limit-lower_limit)-row,(upper_limit-lower_limit),None,'learning in progress') #comment this line if other print is added in this loop
+	print('row: '+str(row))	
+	rep_ittr_count=0
+	exit_count=0
+	prev_updated_pixels_set = set()
+	prev_updated_pixels_color_set = set()		
+	updated_pixels_set = set()
+	updated_pixels_color_set = set()	
+	while rep_ittr_count<repeated_values_count and exit_count<quit_check_count:
+		im_frame_prev = env.reset()
+		#print('rep_ittr_count: '+str(rep_ittr_count))
+		#print('exit_count: '+str(exit_count))
+		pixel_actions_list = []
+		random_actions_list = generate_random_actions_list(actions_list,random_actions_count)
+		print(random_actions_list)
+		action_count=0	
+		while action_count<random_actions_count:
+			observation, reward, done, info = env.step(random_actions_list[action_count])
+			im_frame_current = observation
+			pixel_action = get_pixel_action(im_frame_current,im_frame_prev,row)
+			#print('pixel_action: '+str(pixel_action))
+			updated_pixels = get_updated_pixels_list(im_frame_current,im_frame_prev,row)
+			updated_pixels = list_of_lists_to_set(updated_pixels)	
+			updated_pixels_color = get_updated_pixels_color_list(im_frame_current,im_frame_prev,row)
+			updated_pixels_color = list_of_lists_to_set(updated_pixels_color)	
+			pixel_actions_list.append(pixel_action)
+			updated_pixels_set = updated_pixels_set.union(updated_pixels)
+			updated_pixels_color_set = updated_pixels_color_set.union(updated_pixels_color)	
+			im_frame_prev = im_frame_current
+			action_count=action_count+1	
+
+
+		print(pixel_actions_list)
+		if unordered_lists_diff(pixel_actions_list,random_actions_list)<accuracy:
+			print('same')
+			#print(updated_pixels_set)
+			#print(updated_pixels_color_set)
+			if updated_pixels_set==prev_updated_pixels_set and updated_pixels_color_set==prev_updated_pixels_color_set:
+				rep_ittr_count=rep_ittr_count+1
+			else:
+				rep_ittr_count=0
+		#print(updated_pixels_set)
+		print(rep_ittr_count)	
+		show_learning_view(updated_pixels_set,learning_view)	
+		prev_updated_pixels_set = updated_pixels_set
+		prev_updated_pixels_color_set = updated_pixels_color_set
+		exit_count=exit_count+1	
+	if rep_ittr_count==repeated_values_count:
+		controlled_pixels_dict[row]={}	
+		controlled_pixels_dict[row]['controll_range'] = updated_pixels_set 
+		controlled_pixels_dict[row]['colors'] = updated_pixels_color_set 
+	row=row-1
+
+print(controlled_pixels_dict)
+result_set = set()
+for row in controlled_pixels_dict:
+	result_set.union(controlled_pixels_dict[row]['controll_range'])	
+save_img_array = show_learning_view(result_set,learning_view)
+#save_img_array = show_result_view(save_img_array,result_view)
+save_frame = Image.fromarray(save_img_array)
+save_img_path=input('enter file name to save result: ')
+save_frame.save(save_img_path)
+print('image saved as '+str(save_img_path))
+
+
+#####testing learned values #######
+
+#print('testing....')
+#testing_time=input('enter testing time limit: ')
+#testing_time=int(testing_time)
+#observation = env.reset()
+#observation, reward, done, info = env.step(1)
+#lasttime =time.time()
+#failed_count=0
+#time_elapsed=0
+#while time_elapsed<testing_time:
+	#time_elapsed=time_elapsed+round((time.time() - lasttime), 2)
+	#do_action=calculate_do_action(observation,controlled_pixels_dict)
+	#observation, reward, done, info = env.step(do_action)
+	#time_elapsed=time_elapsed+round((time.time() - lasttime), 2)
+	#if done:
+		#observation = env.reset()
+		#observation, reward, done, info = env.step(1)
+		#failed_count=failed_count+1
+
+#print("failed_count: "+str(failed_count))	
+
+env.close()
