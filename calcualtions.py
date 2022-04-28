@@ -195,7 +195,10 @@ if from_scan_range_val!=None and to_scan_range_val!=None:
 else:
 	from_scan_range=None
 	to_scan_range=None
-expected_result_set = {}
+expected_result_set = set()
+for i in [189,190,191,192]:
+	for j in range(144):
+		expected_result_set = expected_result_set.union({(i,j+8)}) 
 learning_view = np.zeros((frame_height, frame_width, 3), dtype = "uint8")
 result_view = env.reset() 
 ######
@@ -267,10 +270,10 @@ while row>lower_limit:
 		controlled_pixels_dict[row]['colors'] = updated_pixels_color_set 
 	row=row-1
 
-print(controlled_pixels_dict)
+#print(controlled_pixels_dict)
 result_set = set()
 for row in controlled_pixels_dict:
-	result_set.union(controlled_pixels_dict[row]['controll_range'])	
+	result_set = result_set.union(controlled_pixels_dict[row]['controll_range'])	
 save_img_array = show_learning_view(result_set,learning_view)
 save_img_array = show_result_view(save_img_array,result_view)
 save_frame = Image.fromarray(save_img_array)
