@@ -144,6 +144,15 @@ def show_result_view(img_array,background):
 		i=i+1
 	return background
 
+#### enter learnig loop parameters
+check_scan_range=input('apply scan range(y/n): ')
+from_scan_range_val=None
+to_scan_range_val=None
+if check_scan_range=='y':
+	from_scan_range_val=input('enter from_scan_range: ')
+	to_scan_range_val=input('enter to_scan_range (value should be less than 210): ')
+####
+
 env = gym.make('Breakout-v0',render_mode='human')
 
 ### constant values
@@ -161,15 +170,6 @@ for i in [189,190,191,192]:
 		expected_result_set = expected_result_set.union({(i,j+8)}) 
 result_view = env.reset() 
 ######
-
-#### enter learnig loop parameters
-check_scan_range=input('apply scan range(y/n): ')
-from_scan_range_val=None
-to_scan_range_val=None
-if check_scan_range=='y':
-	from_scan_range_val=input('enter from_scan_range: ')
-	to_scan_range_val=input('enter to_scan_range (value should be less than 210): ')
-####
 
 if from_scan_range_val!=None and to_scan_range_val!=None:
 	from_scan_range=int(from_scan_range_val)
