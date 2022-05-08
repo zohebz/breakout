@@ -191,7 +191,7 @@ else:
 row = upper_limit 
 print('frame height: '+str(upper_limit-lower_limit)) 
 #row=192 #for test
-while row>-1:
+while row>lower_limit:
 	print(row)
 	rep_ittr_count=0
 	exit_count=0
