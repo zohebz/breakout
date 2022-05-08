@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 import random
 import collections
+import cv2
 
 def compair_lists(a,b):
 	compare = lambda x, y: collections.Counter(x) == collections.Counter(y)
@@ -122,22 +123,73 @@ def generate_random_actions_list(actions_list,count):
 		ret_list.append(random.choice(actions_list))
 	return ret_list	
 
+def show_learning_view(pixels_set,background):
+	apply_color = [0,100,0]
+	for pixels in pixels_set:
+		background[pixels[0]][pixels[1]] = apply_color
+	cv2.imshow('learning view',background)
+	cv2.waitKey(100)
+	return background
+
+def show_result_view(img_array,background):
+	blur_image = cv2.GaussianBlur(img_array, (3,3), 0)
+	frame_diff = np.subtract(img_array,blur_image)
+	i=0
+	while i<len(background):
+		j=0
+		while j<len(background[i]):
+			if frame_diff[i][j][1]>150:
+				background[i][j] = [0, 200, 0]
+			j=j+1
+		i=i+1
+	return background
 
 env = gym.make('Breakout-v0',render_mode='human')
 
 ### constant values
 actions_list=[2,3]
-repeated_values_count = 20 #how many time the values should reapeate to finalize
+repeated_values_count = 15 #how many time the values should reapeate to finalize
 quit_check_count = 100  
-random_actions_count = 3
+random_actions_count = 10
 frame_height = 210
 frame_width = 160
-accuracy = 1
+accuracy = 3
+learning_view = np.zeros((frame_height, frame_width, 3), dtype = "uint8")
+expected_result_set = set()
+for i in [189,190,191,192]:
+	for j in range(144):
+		expected_result_set = expected_result_set.union({(i,j+8)}) 
+result_view = env.reset() 
 ######
+
+#### enter learnig loop parameters
+check_scan_range=input('apply scan range(y/n): ')
+from_scan_range_val=None
+to_scan_range_val=None
+if check_scan_range=='y':
+	from_scan_range_val=input('enter from_scan_range: ')
+	to_scan_range_val=input('enter to_scan_range (value should be less than 210): ')
+####
+
+if from_scan_range_val!=None and to_scan_range_val!=None:
+	from_scan_range=int(from_scan_range_val)
+	to_scan_range=int(to_scan_range_val)
+else:
+	from_scan_range=None
+	to_scan_range=None
 
 controlled_pixels_dict = {}
 
-row = frame_height - 1 
+row = frame_height - 1
+if from_scan_range!=None and to_scan_range!=None:
+	upper_limit = to_scan_range
+	lower_limit=from_scan_range-1 
+else:
+	upper_limit = frame_height-1
+	lower_limit = -1
+
+row = upper_limit 
+print('frame height: '+str(upper_limit-lower_limit)) 
 #row=192 #for test
 while row>-1:
 	print(row)
@@ -180,6 +232,7 @@ while row>-1:
 				rep_ittr_count=rep_ittr_count+1
 			else:
 				rep_ittr_count=0
+		show_learning_view(updated_pixels_set,learning_view)	
 		prev_updated_pixels_set = updated_pixels_set
 		prev_updated_pixels_color_set = updated_pixels_color_set
 		exit_count=exit_count+1	
@@ -190,6 +243,17 @@ while row>-1:
 	row=row-1
 
 print(controlled_pixels_dict)
+result_set = set()
+for row in controlled_pixels_dict:
+	result_set = result_set.union(controlled_pixels_dict[row]['controll_range'])	
+save_img_array = show_learning_view(result_set,learning_view)
+save_img_array = show_result_view(save_img_array,result_view)
+save_frame = Image.fromarray(save_img_array)
+save_img_path=input('enter file name to save result: ')
+save_frame.save(save_img_path)
+print('image saved as '+str(save_img_path))
+result_error = len(expected_result_set - result_set)
+print('total error: '+str(result_error))
 
 env.close()
 
