@@ -128,28 +128,18 @@ def generate_random_actions_list(actions_list,count):
 def show_learning_view(pixels_set,background):
 	apply_color = [0,255,0]
 	black_bg = np.zeros((210, 160, 3), dtype = "uint8")
+	resize_dim = (210*2, 160*3)
+	background = cv2.resize(background, resize_dim, interpolation = cv2.INTER_AREA)	
 	for pixels in pixels_set:
 		black_bg[pixels[0]][pixels[1]] = apply_color
+	black_bg = cv2.resize(black_bg, resize_dim, interpolation = cv2.INTER_AREA)
 	gray = cv2.cvtColor(black_bg, cv2.COLOR_BGR2GRAY)
 	ret, binary = cv2.threshold(gray, 100, 255, cv2.THRESH_OTSU)
 	contours, hierarchy = cv2.findContours(binary,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 	result_frame = cv2.drawContours(background, contours, -1,(255,0,255),1)
 	cv2.imshow('learning view',result_frame)
 	cv2.waitKey(100)
-	return result_frame 
-
-def show_result_view(img_array,background):
-	blur_image = cv2.GaussianBlur(img_array, (3,3), 0)
-	frame_diff = np.subtract(img_array,blur_image)
-	i=0
-	while i<len(background):
-		j=0
-		while j<len(background[i]):
-			if frame_diff[i][j][1]>150:
-				background[i][j] = [0, 200, 0]
-			j=j+1
-		i=i+1
-	return background
+	return result_frame
 
 def get_slider_pixels_pos(im_curr_frame,controlled_pixels_dict):
 	slider_pixels = []
@@ -226,7 +216,7 @@ expected_result_set = set()
 for i in [189,190,191,192]:
 	for j in range(144):
 		expected_result_set = expected_result_set.union({(i,j+8)}) 
-result_view = env.reset() 
+observation = env.reset() 
 ######
 
 if from_scan_range_val!=None and to_scan_range_val!=None:
@@ -248,7 +238,7 @@ else:
 
 row = upper_limit
 result_set = set() 
-show_learning_view(result_set,result_view)
+show_learning_view(result_set,observation)
 print('frame height: '+str(upper_limit-lower_limit))
 #row=192 #for test
 while row>lower_limit:
@@ -289,10 +279,11 @@ while row>lower_limit:
 			#print(updated_pixels_set)
 			#print(updated_pixels_color_set)
 			if updated_pixels_set==prev_updated_pixels_set and updated_pixels_color_set==prev_updated_pixels_color_set:
-				rep_ittr_count=rep_ittr_count+1	
+				rep_ittr_count=rep_ittr_count+1
+				show_learning_view(result_set.union(updated_pixels_set),observation)	
 			else:
 				rep_ittr_count=0
-		show_learning_view(result_set.union(updated_pixels_set),result_view)	
+		#show_learning_view(result_set.union(updated_pixels_set),result_view)	
 		prev_updated_pixels_set = updated_pixels_set
 		prev_updated_pixels_color_set = updated_pixels_color_set
 		exit_count=exit_count+1	
@@ -305,7 +296,7 @@ while row>lower_limit:
 		result_set = result_set.union(controlled_pixels_dict[get_row]['controll_range']) 
 
 print(controlled_pixels_dict)	
-save_img_array = show_learning_view(result_set,result_view)
+save_img_array = show_learning_view(result_set,observation)
 save_frame = Image.fromarray(save_img_array)
 save_img_path=input('enter file name to save result: ')
 save_frame.save(save_img_path)
@@ -322,7 +313,7 @@ im_curr_frame = observation
 start_time =time.time()
 reach = 5
 while not done:
-	prev_slider_pixels,prev_x_slider_pos = get_slider_pixels_pos(im_curr_frame,controlled_pixels_dict)
+	prev_slider_pixels,prev_x_slider_pos = get_slider_pixels_pos(im_prev_frame,controlled_pixels_dict)
 	slider_pixels,x_slider_pos = get_slider_pixels_pos(im_curr_frame,controlled_pixels_dict) 
 	ignore_pixels = list_of_lists_to_set(prev_slider_pixels+slider_pixels)
 	ignore_pixels = list(ignore_pixels)  
@@ -338,7 +329,6 @@ while not done:
 		observation, reward, done, info = env.step(1)	
 	im_prev_frame = im_curr_frame
 	im_curr_frame = observation
-env.close()
 print('<-----------------------end------------------------>')
 end_time = time.time()
 total_time = end_time - start_time
